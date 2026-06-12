@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://bitcoinball.top/sitemap.xml

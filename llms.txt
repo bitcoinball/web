@@ -1,0 +1,17 @@
+# BitcoinBall
+
+> High-speed computing lottery system built on Bitcoin mining principles. Zero vigorish, positive expected return, 3.125 BTC prizes every 10 minutes.
+
+## Docs
+
+- Home: https://bitcoinball.top/
+- Lucky Draw: https://bitcoinball.top/lucky.html
+
+## Features
+
+- Zero Vigorish — no hidden fees, pure winnings
+- 3.125 Bitcoin / 10min — massive prizes every 10 minutes
+- 1T Lucky No/s — unprecedented winning chances
+- Positive Expected Return — guaranteed profit over time
+- Low $100 Investment — start with just $100
+- Ultra-Low Electricity — only $0.0005 per 10 minutes
