@@ -9,14 +9,16 @@
     .animation-container {
       position: relative;
       width: 100%;
-      height: 80vh;
+      height: 70vh;
+      min-height: 400px;
       margin: 20px 0;
-      border: 2px solid #ffd700;
-      border-radius: 10px;
+      border: 2px solid rgba(255, 215, 0, 0.3);
+      border-radius: 16px;
       overflow: hidden;
       background: rgba(0, 0, 0, 0.7);
+      box-shadow: 0 0 40px rgba(255, 137, 6, 0.15), inset 0 0 60px rgba(0, 0, 0, 0.5);
     }
-    
+
     canvas {
       position: absolute;
       top: 0;
@@ -24,18 +26,60 @@
       width: 100%;
       height: 100%;
     }
-    
+
     .result-display {
       text-align: center;
-      font-size: 1.8rem;
-      padding: 15px;
-      background: rgba(0, 0, 0, 0.5);
-      border-radius: 10px;
-      margin: 20px auto;
-      max-width: 90%;
-      color: #ffd700;
+      font-size: 1.6rem;
+      padding: 18px 24px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 215, 0, 0.2);
+      border-radius: 12px;
       margin: 20px 0;
+      color: #ffd700;
       font-family: 'Orbitron', sans-serif;
+      letter-spacing: 2px;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+    }
+
+    .draw-info {
+      text-align: center;
+      color: #888;
+      font-size: 0.9rem;
+      margin: 10px 0;
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 1px;
+    }
+
+    .lucky-actions {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .lucky-actions a {
+      display: inline-block;
+      padding: 12px 28px;
+      border-radius: 30px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.85rem;
+      text-decoration: none;
+      transition: all 0.3s ease;
+    }
+
+    .lucky-actions .btn-back {
+      background: transparent;
+      border: 1px solid rgba(255, 137, 6, 0.4);
+      color: #ff8906;
+    }
+
+    .lucky-actions .btn-back:hover {
+      background: rgba(255, 137, 6, 0.1);
+      border-color: #ff8906;
     }
   </style>
 </head>
@@ -47,14 +91,26 @@
         <h1>Lucky Now</h1>
       </div>
     </div>
-    
-    <h2>Powerball Draw</h2>
+
+    <h2 style="text-align:center;font-weight:300;font-size:1.2rem;color:#aaa;margin-top:-10px;">
+      BitcoinBall Powerball Draw Simulation
+    </h2>
+
     <div class="animation-container" id="powerball-container">
       <canvas id="powerball-canvas"></canvas>
     </div>
+
     <div class="result-display" id="powerball-result">Drawing numbers...</div>
+
+    <p class="draw-info">
+      6 balls · 1-59 range · auto-restart every 3 seconds
+    </p>
+
+    <div class="lucky-actions">
+      <a href="index.html" class="btn-back">← Back to Home</a>
+    </div>
   </div>
-  
+
   <script src="lucky.js"></script>
 </body>
 </html>
