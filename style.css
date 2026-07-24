@@ -107,7 +107,7 @@ h1 {
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1) ease;
   box-shadow: 0 0 15px rgba(255, 137, 6, 0.5);
 }
 
@@ -129,7 +129,7 @@ h2 {
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1) ease;
   box-shadow: 0 0 15px rgba(255, 137, 6, 0.5);
 }
 
@@ -180,7 +180,7 @@ h2 {
   border-radius: 10px;
   padding: 2rem;
   text-align: center;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1) ease;
   backdrop-filter: blur(10px);
 }
 
@@ -206,4 +206,18 @@ h2 {
 .prop-card p {
   font-size: 1.1rem;
   line-height: 1.6;
+}
+
+::selection {
+  background: var(--accent, #f7931a);
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
