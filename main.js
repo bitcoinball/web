@@ -1,264 +1,155 @@
-// 比特币粒子背景系统
-const canvas = document.getElementById('bitcoinParticles');
-const ctx = canvas.getContext('2d');
+/* BitcoinBall.top — landing interactions (design system V2.0)
+ * - hash-particle background (gold/amber, subdued)
+ * - 10-minute block countdown ring + draws-completed-today
+ * - yield simulator (Yellow Paper §5 formula, baseline 30 TH/s / $0.12 /
+ *   400 W / BTC $60,000 / 600 EH/s -> +$0.27/day)
+ * All motion respects prefers-reduced-motion. */
+(function () {
+  'use strict';
 
-// 设置画布尺寸
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+  var reduced = window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// 粒子类
-class Particle {
-  constructor() {
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.size = Math.random() * 3 + 1;
-    this.speedX = Math.random() * 1 - 0.5;
-    this.speedY = Math.random() * 1 - 0.5;
-    this.color = `hsl(${Math.random() * 60 + 20}, 100%, 60%)`;
+  /* ---------- background: drifting hash particles ---------- */
+  var canvas = document.getElementById('bg-canvas');
+  if (canvas && !reduced) {
+    var ctx = canvas.getContext('2d');
+    var W, H, parts = [];
+    var GLYPHS = '0123456789abcdef';
+
+    function resize() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    var N = Math.min(70, Math.floor(window.innerWidth / 22));
+    for (var i = 0; i < N; i++) {
+      parts.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        v: 0.15 + Math.random() * 0.45,
+        s: 10 + Math.random() * 8,
+        c: GLYPHS[(Math.random() * 16) | 0],
+        a: 0.05 + Math.random() * 0.16,
+        g: Math.random() < 0.18      /* a few gold ones */
+      });
+    }
+
+    function tick() {
+      ctx.clearRect(0, 0, W, H);
+      for (var i = 0; i < parts.length; i++) {
+        var p = parts[i];
+        p.y += p.v;
+        if (p.y > H + 20) {
+          p.y = -20;
+          p.x = Math.random() * W;
+          p.c = GLYPHS[(Math.random() * 16) | 0];
+        }
+        ctx.font = p.s + 'px ui-monospace, monospace';
+        ctx.fillStyle = p.g
+          ? 'rgba(247,147,26,' + p.a + ')'
+          : 'rgba(120,120,180,' + (p.a * 0.7) + ')';
+        ctx.fillText(p.c, p.x, p.y);
+      }
+      requestAnimationFrame(tick);
+    }
+    tick();
   }
-  
-  update() {
-    this.x += this.speedX;
-    this.y += this.speedY;
-    
-    if (this.x > canvas.width || this.x < 0) this.speedX *= -1;
-    if (this.y > canvas.height || this.y < 0) this.speedY *= -1;
+
+  /* ---------- countdown ring (10-minute wall-clock boundary) ---------- */
+  var cdEl = document.getElementById('countdown');
+  var ring = document.getElementById('ringProg');
+  var ringBox = document.getElementById('ring');
+  var drawsEl = document.getElementById('drawsToday');
+  var CIRC = 2 * Math.PI * 42;            /* r=42 */
+  var PERIOD = 600;                        /* seconds */
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function updateCountdown() {
+    var now = new Date();
+    var sec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    var into = sec % PERIOD;
+    var left = PERIOD - into;
+    cdEl.textContent = pad(Math.floor(left / 60)) + ':' + pad(left % 60);
+    ring.style.strokeDashoffset = (CIRC * (into / PERIOD)).toFixed(2);
+    drawsEl.textContent = Math.floor(sec / PERIOD) + ' / 144';
+    if (left === PERIOD && ringBox && !reduced) {
+      /* rolled over: brief, restrained glow (<=3s) */
+      ringBox.classList.remove('celebrate');
+      void ringBox.offsetWidth;
+      ringBox.classList.add('celebrate');
+    }
   }
-  
-  draw() {
-    ctx.fillStyle = this.color;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // 添加发光效果
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = this.color;
+  if (cdEl) {
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
   }
-}
 
-// 创建粒子
-const particles = [];
-for (let i = 0; i < 150; i++) {
-  particles.push(new Particle());
-}
+  /* ---------- yield simulator (Yellow Paper §5) ---------- */
+  var MODELS = {
+    frame:   { h: 30, w: 0.400 },   /* TH/s, kW — Yellow Paper baseline */
+    clock:   { h: 20, w: 0.275 },
+    speaker: { h: 45, w: 0.600 }
+  };
+  var SUBSIDY = 3.325;   /* 3.125 BTC + ~0.2 BTC fees */
+  var POOL = 0.99;       /* 1% pool fee (FPPS) */
 
-// 动画循环
-function animate() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  // 绘制比特币符号轮廓
-  ctx.font = 'bold 120px Orbitron';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.strokeStyle = 'rgba(255, 137, 6, 0.1)';
-  ctx.lineWidth = 2;
-  ctx.strokeText('₿', canvas.width/2, canvas.height/2);
-  
-  // 更新和绘制粒子
-  particles.forEach(particle => {
-    particle.update();
-    particle.draw();
-  });
-  
-  requestAnimationFrame(animate);
-}
+  var elModel = document.getElementById('simModel');
+  var elElec = document.getElementById('simElec');
+  var elBtc = document.getElementById('simBtc');
+  var elHash = document.getElementById('simHash');
+  var elElecOut = document.getElementById('elecOut');
+  var elGross = document.getElementById('simGross');
+  var elCost = document.getElementById('simCost');
+  var elNet = document.getElementById('simNet');
 
-animate();
+  function money(v) {
+    var sign = v < 0 ? '-' : '';
+    return sign + '$' + Math.abs(v).toFixed(2);
+  }
 
-// 窗口大小调整时更新画布
-window.addEventListener('resize', () => {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-});
+  function simulate() {
+    var m = MODELS[elModel.value] || MODELS.frame;
+    var p = parseFloat(elElec.value);
+    var q = parseFloat(elBtc.value) || 0;
+    var H = (parseFloat(elHash.value) || 600) * 1e6;   /* EH/s -> TH/s */
 
-// 价值主张动画系统
-const vigorishCanvas = document.getElementById('vigorishCanvas');
-const bitcoinCanvas = document.getElementById('bitcoinCanvas');
-const luckyCanvas = document.getElementById('luckyCanvas');
-const returnCanvas = document.getElementById('returnCanvas');
-const investmentCanvas = document.getElementById('investmentCanvas');
-const electricityCanvas = document.getElementById('electricityCanvas');
+    elElecOut.textContent = '$' + p.toFixed(2) + '/kWh';
 
-const vigorishCtx = vigorishCanvas.getContext('2d');
-const bitcoinCtx = bitcoinCanvas.getContext('2d');
-const luckyCtx = luckyCanvas.getContext('2d');
-const returnCtx = returnCanvas.getContext('2d');
-const investmentCtx = investmentCanvas.getContext('2d');
-const electricityCtx = electricityCanvas.getContext('2d');
+    var btc = (m.h / H) * 144 * SUBSIDY * POOL;
+    var gross = btc * q;
+    var cost = p * m.w * 24;
+    var net = gross - cost;
 
-// 设置canvas尺寸
-[vigorishCanvas, bitcoinCanvas, luckyCanvas, returnCanvas, investmentCanvas, electricityCanvas].forEach(canvas => {
-  canvas.width = 100;
-  canvas.height = 100;
-});
+    elGross.textContent = money(gross);
+    elCost.textContent = money(cost);
+    elNet.textContent = (net < 0 ? '-' : '+') + '$' + Math.abs(net).toFixed(2);
+    elNet.className = 'big num ' + (net >= 0 ? 'pos' : 'neg');
+  }
 
-// Zero Vigorish动画 - 禁止符号
-function animateVigorish() {
-  vigorishCtx.clearRect(0, 0, 100, 100);
-  
-  const time = Date.now() / 1000;
-  const pulse = 0.5 + 0.5 * Math.sin(time * 3);
-  
-  // 绘制圆圈
-  vigorishCtx.beginPath();
-  vigorishCtx.arc(50, 50, 30, 0, Math.PI * 2);
-  vigorishCtx.strokeStyle = `rgba(255, 0, 0, ${pulse})`;
-  vigorishCtx.lineWidth = 4;
-  vigorishCtx.stroke();
-  
-  // 绘制斜线
-  vigorishCtx.beginPath();
-  vigorishCtx.moveTo(30, 30);
-  vigorishCtx.lineTo(70, 70);
-  vigorishCtx.stroke();
-  
-  requestAnimationFrame(animateVigorish);
-}
+  if (elModel) {
+    elModel.addEventListener('change', simulate);
+    elElec.addEventListener('input', simulate);
+    elBtc.addEventListener('input', simulate);
+    elHash.addEventListener('input', simulate);
+    simulate();
+  }
 
-// 3.125 Bitcoin/10min动画 - 比特币符号
-function animateBitcoin() {
-  bitcoinCtx.clearRect(0, 0, 100, 100);
-  
-  const time = Date.now() / 1000;
-  const rotation = time * 0.5;
-  
-  // 绘制旋转的比特币符号
-  bitcoinCtx.save();
-  bitcoinCtx.translate(50, 50);
-  bitcoinCtx.rotate(rotation);
-  bitcoinCtx.font = 'bold 60px Orbitron';
-  bitcoinCtx.textAlign = 'center';
-  bitcoinCtx.textBaseline = 'middle';
-  bitcoinCtx.fillStyle = '#ff8906';
-  bitcoinCtx.fillText('₿', 0, 0);
-  bitcoinCtx.restore();
-  
-  // 绘制文字
-  bitcoinCtx.fillStyle = '#fffffe';
-  bitcoinCtx.font = '10px Orbitron';
-  bitcoinCtx.textAlign = 'center';
-  bitcoinCtx.fillText('3.125', 50, 90);
-  
-  requestAnimationFrame(animateBitcoin);
-}
-
-// 1T Lucky No/s动画 - 骰子
-function animateLucky() {
-  luckyCtx.clearRect(0, 0, 100, 100);
-  
-  const time = Date.now() / 1000;
-  const diceValue = Math.floor(time % 6) + 1;
-  
-  // 绘制骰子
-  luckyCtx.fillStyle = '#ff8906';
-  luckyCtx.fillRect(30, 30, 40, 40);
-  
-  // 绘制骰子点数
-  luckyCtx.fillStyle = '#0f0e17';
-  luckyCtx.font = 'bold 20px Orbitron';
-  luckyCtx.textAlign = 'center';
-  luckyCtx.textBaseline = 'middle';
-  luckyCtx.fillText(diceValue.toString(), 50, 50);
-  
-  // 绘制文字
-  luckyCtx.fillStyle = '#fffffe';
-  luckyCtx.font = '10px Orbitron';
-  luckyCtx.fillText('1T/s', 50, 90);
-  
-  requestAnimationFrame(animateLucky);
-}
-
-// Positive Expected Return动画 - 上升趋势图
-function animateReturn() {
-  returnCtx.clearRect(0, 0, 100, 100);
-  
-  const time = Date.now() / 1000;
-  const progress = (time * 0.5) % 1;
-  
-  // 绘制上升趋势线
-  returnCtx.beginPath();
-  returnCtx.moveTo(10, 90);
-  returnCtx.lineTo(30, 70 - 40 * progress);
-  returnCtx.lineTo(50, 80 - 30 * progress);
-  returnCtx.lineTo(70, 40 - 50 * progress);
-  returnCtx.lineTo(90, 60 - 40 * progress);
-  returnCtx.strokeStyle = '#4ade80';
-  returnCtx.lineWidth = 2;
-  returnCtx.stroke();
-  
-  // 绘制上升箭头
-  returnCtx.beginPath();
-  returnCtx.moveTo(50, 20);
-  returnCtx.lineTo(45, 30);
-  returnCtx.lineTo(55, 30);
-  returnCtx.closePath();
-  returnCtx.fillStyle = '#4ade80';
-  returnCtx.fill();
-  
-  requestAnimationFrame(animateReturn);
-}
-
-// Low $100 Investment动画 - 钱包和金币
-function animateInvestment() {
-  investmentCtx.clearRect(0, 0, 100, 100);
-  
-  const time = Date.now() / 1000;
-  const progress = (time * 2) % 1;
-  
-  // 绘制钱包
-  investmentCtx.fillStyle = '#ff8906';
-  investmentCtx.fillRect(30, 70, 40, 20);
-  investmentCtx.fillRect(35, 60, 30, 10);
-  
-  // 绘制金币掉落
-  const coinY = 20 + 50 * progress;
-  investmentCtx.beginPath();
-  investmentCtx.arc(50, coinY, 8, 0, Math.PI * 2);
-  investmentCtx.fillStyle = '#ffd700';
-  investmentCtx.fill();
-  
-  // 绘制$100文字
-  investmentCtx.fillStyle = '#fffffe';
-  investmentCtx.font = 'bold 16px Orbitron';
-  investmentCtx.textAlign = 'center';
-  investmentCtx.fillText('$100', 50, 85);
-  
-  requestAnimationFrame(animateInvestment);
-}
-
-// Ultra-Low Electricity动画 - 闪电和价格
-function animateElectricity() {
-  electricityCtx.clearRect(0, 0, 100, 100);
-  
-  const time = Date.now() / 200;
-  const blink = Math.abs(Math.sin(time * 5)) > 0.5 ? 1 : 0.5;
-  
-  // 绘制闪电
-  electricityCtx.fillStyle = `rgba(255, 230, 0, ${blink})`;
-  electricityCtx.beginPath();
-  electricityCtx.moveTo(50, 20);
-  electricityCtx.lineTo(65, 50);
-  electricityCtx.lineTo(55, 50);
-  electricityCtx.lineTo(70, 80);
-  electricityCtx.lineTo(45, 45);
-  electricityCtx.lineTo(55, 45);
-  electricityCtx.closePath();
-  electricityCtx.fill();
-  
-  // 绘制价格
-  electricityCtx.fillStyle = '#fffffe';
-  electricityCtx.font = '10px Orbitron';
-  electricityCtx.textAlign = 'center';
-  electricityCtx.fillText('$0.0005', 50, 95);
-  
-  requestAnimationFrame(animateElectricity);
-}
-
-// 启动所有动画
-animateVigorish();
-animateBitcoin();
-animateLucky();
-animateReturn();
-animateInvestment();
-animateElectricity();
+  /* ---------- reveal on scroll ---------- */
+  var revealEls = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window && !reduced && revealEls.length) {
+    document.documentElement.classList.add('js-reveal');
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          e.target.classList.add('in');
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    revealEls.forEach(function (el) { io.observe(el); });
+  }
+})();
