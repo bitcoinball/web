@@ -28,6 +28,7 @@
       <nav class="nav-links" aria-label="Main">
         <a href="#products">Products</a>
         <a href="#simulator">Earnings Simulator</a>
+        <a href="#solo">Solo Mode</a>
         <a href="#compare">Why Not a Lottery</a>
         <a href="#learn">Learn</a>
       </nav>
@@ -55,6 +56,9 @@
       <a href="#products" class="btn btn-primary btn-lg">See the Machines</a>
       <a href="#simulator" class="btn btn-secondary btn-lg">Estimate Daily Yield</a>
     </div>
+
+    <!-- device demo, first screen -->
+    <div id="frame-demo" aria-label="Simulated demo of the BitcoinBall digital frame"></div>
 
     <!-- H-03 live draw countdown -->
     <div class="draw-strip" role="status" aria-label="Block draw countdown">
@@ -221,9 +225,45 @@
           <div class="big pos num" id="simNet">+$0.27</div>
         </div>
         <p class="disclaimer" id="simDisclaimer">
-          Estimate only, computed from the parameters above (block subsidy 3.125 BTC + ~0.2 BTC
+          Your only costs to play: the machine (one-time) and the electricity above.
+          Estimate only, computed from the parameters shown (block subsidy 3.125 BTC + ~0.2 BTC
           fees, 1% pool fee, FPPS). Historical data does not predict future results — actual
           yield varies with price, difficulty and luck, and may be negative.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SOLO MODE + LIVE PRICE ===================== -->
+  <section class="section wrap" id="solo">
+    <div class="section-head reveal">
+      <h2>Feeling lucky? Go solo.</h2>
+      <p>Skip the pool. If your machine finds the block, the whole reward is yours.</p>
+    </div>
+    <div class="sim">
+      <div class="sim-panel reveal">
+        <h3>Live block reward</h3>
+        <div class="solo-price">
+          <div class="stat-label">BTC / USD <span id="priceLive" class="live-dot" title="live">●</span></div>
+          <div class="solo-btc num" id="btcPrice">$60,000</div>
+          <div class="stat-label" id="priceTime">loading live price…</div>
+        </div>
+        <div class="solo-reward">
+          <div class="stat-label">One block pays (3.125 BTC + ~0.2 BTC fees)</div>
+          <div class="solo-usd num" id="blockValue">$199,500</div>
+        </div>
+      </div>
+      <div class="sim-panel reveal">
+        <h3>Your odds, honestly</h3>
+        <ul class="spec-list">
+          <li><span>Per block (30 TH/s vs <span class="num" id="soloNet">600</span> EH/s)</span><b class="num" id="oddsBlock">1 in 20,000,000</b></li>
+          <li><span>Any block today (144 draws)</span><b class="num" id="oddsDay">1 in 138,889</b></li>
+          <li><span>Expected wait at 30 TH/s</span><b class="num" id="oddsYears">~380 years</b></li>
+        </ul>
+        <p class="disclaimer">
+          Solo mode is a long shot — the numbers above are the real probabilities, not marketing.
+          Pool mode (FPPS) pays small steady shares instead. You can switch modes on the device.
+          Historical data does not predict future results.
         </p>
       </div>
     </div>
@@ -245,6 +285,11 @@
           </tr>
         </thead>
         <tbody>
+          <tr>
+            <td>What you pay to play</td>
+            <td class="lose">Every ticket, every week — recurring spend, gone for good</td>
+            <td class="win">One-time machine purchase + electricity. Nothing else, ever</td>
+          </tr>
           <tr>
             <td>Payout rate (return to players)</td>
             <td class="lose">50–65%</td>
@@ -365,5 +410,6 @@
 
 </div>
 <script src="main.js"></script>
+<script src="demo.js"></script>
 </body>
 </html>

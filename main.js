@@ -138,6 +138,72 @@
     simulate();
   }
 
+  /* ---------- live BTC price + solo odds ---------- */
+  var elBtcPrice = document.getElementById('btcPrice');
+  var elPriceTime = document.getElementById('priceTime');
+  var elPriceLive = document.getElementById('priceLive');
+  var elBlockValue = document.getElementById('blockValue');
+  var elOddsBlock = document.getElementById('oddsBlock');
+  var elOddsDay = document.getElementById('oddsDay');
+  var elOddsYears = document.getElementById('oddsYears');
+  var elSoloNet = document.getElementById('soloNet');
+  var btcEdited = false;
+  if (elBtc) elBtc.addEventListener('input', function () { btcEdited = true; });
+
+  function fmtUsd(v) {
+    return '$' + Math.round(v).toLocaleString('en-US');
+  }
+
+  function updateSolo(price) {
+    if (!elBlockValue) return;
+    var netEhs = parseFloat(elHash && elHash.value) || 600;   /* EH/s */
+    var h = 30;                                                /* TH/s frame */
+    var ratio = h / (netEhs * 1e6);                            /* share of network */
+    var perBlock = 1 / ratio;
+    var perDay = 1 / (1 - Math.pow(1 - ratio, 144));
+    var years = perDay / 365;
+    elBlockValue.textContent = fmtUsd(SUBSIDY * price);
+    elOddsBlock.textContent = '1 in ' + Math.round(perBlock).toLocaleString('en-US');
+    elOddsDay.textContent = '1 in ' + Math.round(perDay).toLocaleString('en-US');
+    elOddsYears.textContent = '~' + Math.round(years).toLocaleString('en-US') + ' years';
+    elSoloNet.textContent = Math.round(netEhs);
+  }
+
+  function applyPrice(price, live) {
+    if (!elBtcPrice) return;
+    elBtcPrice.textContent = fmtUsd(price);
+    elPriceTime.textContent = live
+      ? 'live · updated ' + new Date().toLocaleTimeString()
+      : 'offline — using $60,000 reference';
+    elPriceLive.className = 'live-dot ' + (live ? 'on' : 'off');
+    if (elBtc && !btcEdited) {
+      elBtc.value = Math.round(price);
+      simulate();
+    }
+    updateSolo(price);
+  }
+
+  function fetchPrice() {
+    if (!elBtcPrice) return;
+    fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd')
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var p = j && j.bitcoin && j.bitcoin.usd;
+        if (p > 0) applyPrice(p, true);
+        else applyPrice(60000, false);
+      })
+      .catch(function () { applyPrice(60000, false); });
+  }
+
+  if (elBtcPrice) {
+    fetchPrice();
+    setInterval(fetchPrice, 60000);
+    updateSolo(parseFloat(elBtc && elBtc.value) || 60000);
+    if (elHash) elHash.addEventListener('input', function () {
+      updateSolo(parseFloat(elBtcPrice.textContent.replace(/[^0-9]/g, '')) || 60000);
+    });
+  }
+
   /* ---------- reveal on scroll ---------- */
   var revealEls = document.querySelectorAll('.reveal');
   if ('IntersectionObserver' in window && !reduced && revealEls.length) {
