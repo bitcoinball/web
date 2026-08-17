@@ -19,12 +19,12 @@
   var DPR = Math.min(window.devicePixelRatio || 1, 2);
 
   function fit() {
-    var w = Math.min(host.clientWidth, LW);
+    var w = host.clientWidth || LW;
+    var h = host.clientHeight || LH;
     canvas.style.width = w + 'px';
-    canvas.style.height = Math.round(w * LH / LW) + 'px';
+    canvas.style.height = h + 'px';
     canvas.width = Math.round(w * DPR);
-    canvas.height = Math.round(w * LH / LW * 1); /* square-ish pixels */
-    canvas.height = Math.round(w * LH / LW) * DPR;
+    canvas.height = Math.round(h * DPR);
   }
   fit();
   window.addEventListener('resize', fit);
@@ -40,7 +40,6 @@
   var PHOTO_PERIOD = 4600;
   var PHOTOS = 4;
   var BLOCK_HEIGHT = 841207;
-  var share_btc = 0.00000016;   /* illustrative per-block share */
 
   /* ---------------- procedural "photos" ---------------- */
   function drawPhoto(g, idx, x, y, w, h) {
@@ -133,8 +132,24 @@
   /* ---------------- frame drawing ---------------- */
   var t0 = performance.now();
   var blockIdx = 0;         /* blocks seen in this demo */
-  var yield_btc = 0;        /* illustrative accumulated */
+  var solo_wins = 0;        /* illustrative solo blocks won */
+  var SOLO_REWARD = 3.325;  /* 3.125 BTC subsidy + ~0.2 BTC fees */
   var lastBlockT = t0;
+
+  /* high-speed candidate-hash stream: each "ticket" is a nonce || hash
+   * fragment that re-rolls many times per second — the visual metaphor for
+   * trillions of lottery numbers being generated per second. */
+  var HASH_ROWS = 5;
+  var hashRows = [];
+  for (var hr = 0; hr < HASH_ROWS; hr++) {
+    hashRows.push({ speed: 40 + hr * 35, last: 0, text: '' });
+  }
+  function rollHash(len) {
+    var s = '';
+    for (var i = 0; i < len; i++)
+      s += '0123456789abcdef'[(Math.random() * 16) | 0];
+    return s;
+  }
 
   function roundRect(g, x, y, w, h, r) {
     g.beginPath();
@@ -147,8 +162,11 @@
   }
 
   function draw(now) {
-    var scale = canvas.width / LW;
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    /* cover: scale the logical scene to fill the host, centered */
+    var scale = Math.max(canvas.width / LW, canvas.height / LH) * 1.12;
+    ctx.setTransform(scale, 0, 0, scale,
+                     (canvas.width - LW * scale) / 2,
+                     (canvas.height - LH * scale) / 2);
     ctx.clearRect(0, 0, LW, LH);
 
     var t = now - t0;
@@ -208,6 +226,23 @@
       ctx.globalAlpha = 1;
     }
 
+    /* high-speed candidate-hash stream over the photo — each line re-rolls
+     * dozens of times per second (lottery numbers being generated) */
+    ctx.font = '11px ui-monospace, monospace';
+    for (var hr = 0; hr < HASH_ROWS; hr++) {
+      var row = hashRows[hr];
+      if (now - row.last > 1000 / row.speed) {
+        row.text = rollHash(56);
+        row.last = now;
+      }
+      var hy = SCR.y + 30 + hr * 22;
+      /* dim backing strip keeps hex readable over any photo */
+      ctx.fillStyle = 'rgba(5,5,15,0.35)';
+      ctx.fillRect(SCR.x + 10, hy - 10, SCR.w - 20, 14);
+      ctx.fillStyle = 'rgba(250,189,92,0.6)';
+      ctx.fillText(row.text, SCR.x + 16, hy);
+    }
+
     /* mining widget bar */
     ctx.fillStyle = 'rgba(10,10,24,0.82)';
     ctx.fillRect(WID.x, WID.y, WID.w, WID.h);
@@ -217,40 +252,28 @@
     ctx.moveTo(WID.x, WID.y + 0.5); ctx.lineTo(WID.x + WID.w, WID.y + 0.5);
     ctx.stroke();
 
-    /* left: hashrate + pool status */
+    /* left: hashrate + SOLO mode */
     ctx.fillStyle = '#9999bb';
     ctx.font = '11px Inter, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('POOL', WID.x + 16, WID.y + 17);
-    ctx.fillStyle = '#00c853';
-    ctx.beginPath(); ctx.arc(WID.x + 46, WID.y + 13.5, 3, 0, 7); ctx.fill();
+    ctx.fillText('SOLO MINING', WID.x + 16, WID.y + 17);
+    ctx.fillStyle = '#f7931a';
+    ctx.beginPath(); ctx.arc(WID.x + 88, WID.y + 13.5, 3, 0, 7); ctx.fill();
     ctx.fillStyle = '#ffffff';
     ctx.font = '700 15px Inter, sans-serif';
     ctx.fillText('30 TH/s', WID.x + 16, WID.y + 35);
 
-    /* center: countdown ring mini */
-    var cx = WID.x + WID.w * 0.47, cy = WID.y + WIDGET_H / 2, rr = 15;
-    ctx.strokeStyle = '#333355'; ctx.lineWidth = 3.5;
-    ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.stroke();
-    ctx.strokeStyle = '#f7931a';
-    ctx.beginPath();
-    ctx.arc(cx, cy, rr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
-    ctx.stroke();
-    ctx.fillStyle = '#fff';
-    ctx.font = '700 10px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    var left = Math.ceil((1 - frac) * 10 * 60);       /* compressed clock */
-    ctx.fillText(pad2(Math.floor(left / 60)) + ':' + pad2(left % 60), cx, cy + 3.5);
-    ctx.textAlign = 'left';
+    /* center: deliberately empty — the page-level draw strip owns the
+     * block countdown; two ticking rings read as a bug */
 
-    /* right: today yield */
+    /* right: solo blocks won */
     ctx.textAlign = 'right';
     ctx.fillStyle = '#9999bb';
     ctx.font = '11px Inter, sans-serif';
-    ctx.fillText('TODAY (ILLUSTRATIVE)', WID.x + WID.w - 16, WID.y + 17);
+    ctx.fillText('SOLO BLOCKS (ILLUSTRATIVE)', WID.x + WID.w - 16, WID.y + 17);
     ctx.fillStyle = '#f7931a';
     ctx.font = '700 15px Inter, sans-serif';
-    ctx.fillText('+' + yield_btc.toFixed(8) + ' BTC', WID.x + WID.w - 16, WID.y + 35);
+    ctx.fillText(solo_wins + ' × 3.125 BTC', WID.x + WID.w - 16, WID.y + 35);
     ctx.textAlign = 'left';
 
     /* celebration card */
@@ -268,10 +291,10 @@
       ctx.stroke();
       ctx.fillStyle = '#fabd5c';
       ctx.font = '700 14px Inter, sans-serif';
-      ctx.fillText('Block #' + (BLOCK_HEIGHT + blockIdx) + ' found by pool', cardX + 16, cardY + 22);
+      ctx.fillText('BLOCK FOUND — SOLO #' + (BLOCK_HEIGHT + blockIdx), cardX + 16, cardY + 22);
       ctx.fillStyle = '#00c853';
       ctx.font = '700 13px Inter, sans-serif';
-      ctx.fillText('+' + share_btc.toFixed(8) + ' BTC credited', cardX + 16, cardY + 41);
+      ctx.fillText('+' + SOLO_REWARD.toFixed(3) + ' BTC — full block reward', cardX + 16, cardY + 41);
       ctx.fillStyle = '#666688';
       ctx.font = '10px ui-monospace, monospace';
       ctx.fillText('0000000000000000000' + hash12(BLOCK_HEIGHT + blockIdx) + '…',
@@ -279,14 +302,6 @@
       ctx.globalAlpha = 1;
     }
     ctx.restore();
-
-    /* caption under the device */
-    ctx.fillStyle = '#666688';
-    ctx.font = '12px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Simulated demo — time compressed. Yield figures are illustrative, not a promise.',
-                 LW / 2, DEV.y + DEV.h + 92);
-    ctx.textAlign = 'left';
   }
 
   function pad2(n) { return n < 10 ? '0' + n : '' + n; }
@@ -304,7 +319,7 @@
     if (Math.floor((now - t0) / DEMO_PERIOD) !== Math.floor((lastFrameT - t0) / DEMO_PERIOD)) {
       lastBlockT = now;
       blockIdx++;
-      yield_btc += share_btc;
+      solo_wins++;
     }
     lastFrameT = now;
     draw(now);
